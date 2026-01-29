@@ -365,6 +365,9 @@ function draw() {
         ctx.fill();
         ctx.shadowBlur = 0;
 
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 12px Roboto';
+        ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(food.value, cx, cy);
     });
