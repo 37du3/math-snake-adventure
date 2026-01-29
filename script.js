@@ -386,20 +386,75 @@ function draw() {
         ctx.fillText(currentState.currentQuestion.text, canvas.width / 2, canvas.height / 2);
     }
 
-    // Draw Snake
+    // Draw Snake (Cartoon Style)
     currentState.snake.forEach((part, index) => {
-        ctx.fillStyle = index === 0 ? accentColor : primaryColor;
-        ctx.shadowBlur = index === 0 ? 15 : 0;
+        // Body Segment (Circle)
+        const isHead = index === 0;
+        const x = part.x * GRID_SIZE + GRID_SIZE / 2;
+        const y = part.y * GRID_SIZE + GRID_SIZE / 2;
+        const radius = GRID_SIZE / 2 + (isHead ? 2 : 1); // Head slightly bigger
+
+        ctx.fillStyle = isHead ? accentColor : primaryColor;
+        // Soft Shadow
+        ctx.shadowBlur = 10;
         ctx.shadowColor = primaryColor;
 
-        const pad = 1;
-        ctx.fillRect(
-            part.x * GRID_SIZE + pad,
-            part.y * GRID_SIZE + pad,
-            GRID_SIZE - 2 * pad,
-            GRID_SIZE - 2 * pad
-        );
+        ctx.beginPath();
+        ctx.arc(x, y, radius, 0, Math.PI * 2);
+        ctx.fill();
         ctx.shadowBlur = 0;
+
+        // Draw Head Details (Eyes & Tongue)
+        if (isHead) {
+            const dx = currentState.dx;
+            const dy = currentState.dy;
+
+            // Tongue (Flicking out)
+            if (Math.floor(Date.now() / 150) % 2 === 0) { // Flicker effect
+                ctx.strokeStyle = '#ef4444';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(x + dx * 10, y + dy * 10);
+                ctx.lineTo(x + dx * 18, y + dy * 18);
+                // Fork
+                const angle = Math.atan2(dy, dx);
+                ctx.moveTo(x + dx * 18, y + dy * 18);
+                ctx.lineTo(x + dx * 18 + Math.cos(angle - 0.5) * 5, y + dy * 18 + Math.sin(angle - 0.5) * 5);
+                ctx.moveTo(x + dx * 18, y + dy * 18);
+                ctx.lineTo(x + dx * 18 + Math.cos(angle + 0.5) * 5, y + dy * 18 + Math.sin(angle + 0.5) * 5);
+                ctx.stroke();
+            }
+
+            // Eyes (White Sclera + Black Pupil)
+            // Calculate eye positions perpendicular to direction
+            // Offset for left/right eye relative to center
+            const eyeOffset = 6;
+            const eyeRadius = 4;
+            const pupilRadius = 1.5;
+
+            // Perpendicular vector (-dy, dx) and (dy, -dx)
+            const perpX = -dy;
+            const perpY = dx;
+
+            // Eye 1
+            const ex1 = x + dx * 4 + perpX * eyeOffset;
+            const ey1 = y + dy * 4 + perpY * eyeOffset;
+            // Eye 2
+            const ex2 = x + dx * 4 - perpX * eyeOffset;
+            const ey2 = y + dy * 4 - perpY * eyeOffset;
+
+            // Draw Scleras
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath(); ctx.arc(ex1, ey1, eyeRadius, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.arc(ex2, ey2, eyeRadius, 0, Math.PI * 2); ctx.fill();
+
+            // Draw Pupils (looking forward)
+            ctx.fillStyle = '#1e293b';
+            const lx = dx * 2; // Look slightly forward
+            const ly = dy * 2;
+            ctx.beginPath(); ctx.arc(ex1 + lx, ey1 + ly, pupilRadius, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.arc(ex2 + lx, ey2 + ly, pupilRadius, 0, Math.PI * 2); ctx.fill();
+        }
     });
 
     // Draw Foods
