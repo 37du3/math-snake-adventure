@@ -87,6 +87,29 @@ h1 {
     justify-content: center;
 }
 
+.speed-control {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    color: var(--primary-color);
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.8rem;
+    background: rgba(255, 255, 255, 0.05);
+    /* Slightly visible bg */
+    padding: 5px 10px;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.speed-control input {
+    margin-top: 5px;
+    accent-color: var(--primary-color);
+    cursor: pointer;
+}
+
 .score-item {
     display: flex;
     flex-direction: column;

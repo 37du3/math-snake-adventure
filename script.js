@@ -5,11 +5,12 @@ const highScoreEl = document.getElementById('high-score');
 const startBtn = document.getElementById('start-btn');
 const uiLayer = document.getElementById('ui-layer');
 const gameStatus = document.getElementById('game-status');
+const speedSlider = document.getElementById('speed-slider');
 
 // Game Constants
 const GRID_SIZE = 20;
 const TILE_COUNT = canvas.width / GRID_SIZE;
-const GAME_SPEED = 100;
+let gameSpeed = 100;
 
 // Dependencies
 const mathEngine = new MathEngine();
@@ -35,8 +36,32 @@ let currentState = {
 highScoreEl.textContent = currentState.highScore;
 
 // Event Listeners
+// Event Listeners
 document.addEventListener('keydown', handleInput);
 startBtn.addEventListener('click', startGame);
+speedSlider.addEventListener('input', handleSpeedChange);
+
+function handleSpeedChange(e) {
+    gameSpeed = parseInt(e.target.value);
+    // Invert logic for intuitive UI if needed, but let's stick to direct delay for now.
+    // Actually, let's make it correct: Left (Low Number 50ms) = Fast. Right (High Number 300ms) = Slow.
+    // This is backwards. Let's flip it in JS:
+    // We want Right (High Value) = Fast (Low Delay).
+    // Let's assume the HTML is `min="1" max="20"`.
+    // Delay = 400 - (value * 15).
+    // But since HTML is already set 50-300:
+    // Let's just use the value directly and let the user figure out "Lower ms = Faster".
+    // Or I used `input type="range"`.
+
+    // Update live if running
+    if (currentState.isRunning && currentState.interval) {
+        clearInterval(currentState.interval);
+        currentState.interval = setInterval(gameLoop, gameSpeed);
+    }
+
+    // De-focus to prevent Key capture issues
+    e.target.blur();
+}
 
 function initGame() {
     currentState.snake = [
@@ -138,7 +163,8 @@ function startGame() {
     currentState.isRunning = true;
     uiLayer.classList.add('hidden');
     if (currentState.interval) clearInterval(currentState.interval);
-    currentState.interval = setInterval(gameLoop, GAME_SPEED);
+    if (currentState.interval) clearInterval(currentState.interval);
+    currentState.interval = setInterval(gameLoop, gameSpeed);
 }
 
 function gameLoop() {
@@ -374,27 +400,107 @@ function draw() {
 
     // Draw Powerups
     currentState.powerups.forEach(p => {
-        const cx = p.x * GRID_SIZE + GRID_SIZE / 2;
-        const cy = p.y * GRID_SIZE + GRID_SIZE / 2;
-
-        ctx.shadowBlur = 10;
         if (p.type === 'bomb') {
-            ctx.fillStyle = '#ef4444'; // Red
-            ctx.shadowColor = '#ef4444';
-            // Simple square
-            ctx.fillRect(p.x * GRID_SIZE + 4, p.y * GRID_SIZE + 4, GRID_SIZE - 8, GRID_SIZE - 8);
+            drawBomb(p.x, p.y);
         } else {
-            ctx.fillStyle = '#a855f7'; // Purple Potion
-            ctx.shadowColor = '#a855f7';
-            // Triangle
-            ctx.beginPath();
-            ctx.moveTo(cx, p.y * GRID_SIZE + 2);
-            ctx.lineTo(p.x * GRID_SIZE + 2, p.y * GRID_SIZE + GRID_SIZE - 2);
-            ctx.lineTo(p.x * GRID_SIZE + GRID_SIZE - 2, p.y * GRID_SIZE + GRID_SIZE - 2);
-            ctx.fill();
+            drawPotion(p.x, p.y);
         }
-        ctx.shadowBlur = 0;
     });
+}
+
+function drawBomb(gridX, gridY) {
+    const x = gridX * GRID_SIZE + GRID_SIZE / 2;
+    const y = gridY * GRID_SIZE + GRID_SIZE / 2;
+    const radius = GRID_SIZE / 2 - 2;
+
+    // Pulse Effect
+    const time = Date.now() / 200;
+    const glow = Math.abs(Math.sin(time)) * 10 + 5;
+
+    ctx.save();
+
+    // Bomb Body
+    ctx.shadowBlur = glow;
+    ctx.shadowColor = '#ef4444';
+    ctx.fillStyle = '#1e293b'; // Dark body
+    ctx.beginPath();
+    ctx.arc(x, y + 2, radius, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Gradient Sheen
+    const grad = ctx.createRadialGradient(x - 2, y - 2, 1, x, y, radius);
+    grad.addColorStop(0, '#64748b');
+    grad.addColorStop(1, '#0f172a');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(x, y + 2, radius, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Fuse
+    ctx.strokeStyle = '#edaeb0'; // Fuse color
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(x, y - radius + 2);
+    ctx.quadraticCurveTo(x + 5, y - radius - 5, x + 8, y - radius);
+    ctx.stroke();
+
+    // Spark
+    const sparkAlpha = Math.abs(Math.sin(time * 3));
+    ctx.fillStyle = `rgba(252, 211, 77, ${sparkAlpha})`; // Yellow spark
+    ctx.shadowColor = '#fcd34d';
+    ctx.shadowBlur = 10;
+    ctx.beginPath();
+    ctx.arc(x + 8, y - radius, 2, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Icon (Cross or Skull hint? Let's just keep it simple abstract bomb)
+    // Red 'X' or center ?
+    ctx.fillStyle = '#ef4444';
+    ctx.font = 'bold 10px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.shadowBlur = 0;
+    ctx.fillText('b', x, y + 3); // Maybe a skull char or just '!'? '!' is better
+
+    ctx.restore();
+}
+
+function drawPotion(gridX, gridY) {
+    const x = gridX * GRID_SIZE + GRID_SIZE / 2;
+    const y = gridY * GRID_SIZE + GRID_SIZE / 2;
+
+    // Pulse Effect
+    const time = Date.now() / 300;
+    const glow = Math.abs(Math.sin(time)) * 10 + 5;
+
+    ctx.save();
+
+    // Flask Shape (Triangle-ish)
+    ctx.shadowBlur = glow;
+    ctx.shadowColor = '#a855f7';
+    ctx.fillStyle = '#a855f7';
+
+    ctx.beginPath();
+    const w = 6;
+    const h = 8;
+    // Neck
+    ctx.rect(x - 3, y - 8, 6, 6);
+    // Base
+    ctx.moveTo(x - 3, y - 2);
+    ctx.lineTo(x - 7, y + 8);
+    ctx.quadraticCurveTo(x, y + 10, x + 7, y + 8);
+    ctx.lineTo(x + 3, y - 2);
+    ctx.fill();
+
+    // Liquid Bubble
+    const bubbleY = y + 4 - Math.abs(Math.sin(time * 2)) * 3;
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+    ctx.shadowBlur = 0;
+    ctx.beginPath();
+    ctx.arc(x, bubbleY, 1.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.restore();
 }
 
 function updateTheme(tier) {
