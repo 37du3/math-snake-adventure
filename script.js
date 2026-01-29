@@ -32,7 +32,10 @@ let currentState = {
     nextDx: 0,
     nextDy: 0,
     isRunning: false,
-    interval: null
+    interval: null,
+    // FX State
+    particles: [],
+    shake: { x: 0, y: 0, duration: 0 }
 };
 
 // Initialize High Score UI
@@ -206,7 +209,57 @@ function gameLoop() {
         handlePowerup(eatenPowerupIndex);
     }
 
+    updateParticles();
+    updateShake();
     draw();
+}
+
+function updateParticles() {
+    for (let i = currentState.particles.length - 1; i >= 0; i--) {
+        const p = currentState.particles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.life--;
+        p.alpha = p.life / p.maxLife;
+
+        if (p.life <= 0) {
+            currentState.particles.splice(i, 1);
+        }
+    }
+}
+
+function updateShake() {
+    if (currentState.shake.duration > 0) {
+        currentState.shake.x = (Math.random() - 0.5) * 10;
+        currentState.shake.y = (Math.random() - 0.5) * 10;
+        currentState.shake.duration--;
+    } else {
+        currentState.shake.x = 0;
+        currentState.shake.y = 0;
+    }
+}
+
+function spawnParticles(x, y, color, count = 10, type = 'burst') {
+    // x, y are pixel coordinates (center of tile preferably)
+    for (let i = 0; i < count; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = Math.random() * 2 + 0.5;
+        currentState.particles.push({
+            x: x,
+            y: y,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed,
+            color: color,
+            life: 30 + Math.random() * 20,
+            maxLife: 50,
+            size: Math.random() * 3 + 1,
+            type: type
+        });
+    }
+}
+
+function triggerShake(duration = 10) {
+    currentState.shake.duration = duration;
 }
 
 function moveSnake() {
@@ -252,19 +305,30 @@ function handlePowerup(index) {
     const powerup = currentState.powerups[index];
 
     // Effect
+    const px = powerup.x * GRID_SIZE + GRID_SIZE / 2;
+    const py = powerup.y * GRID_SIZE + GRID_SIZE / 2;
+
     if (powerup.type === 'bomb') {
         // Clear all distractors
         currentState.foods = currentState.foods.filter(f => f.isCorrect);
-        // Visual flash (simple console for now)
+        // Shorten Snake (Blast damage!)
+        if (currentState.snake.length > 3) {
+            currentState.snake.splice(currentState.snake.length - 3, 3);
+        }
+        spawnParticles(px, py, '#ef4444', 20, 'explosion');
+        triggerShake(15);
     } else if (powerup.type === 'potion') {
         const tail = currentState.snake[currentState.snake.length - 1];
         currentState.snake.push({ ...tail });
         currentState.snake.push({ ...tail });
+        spawnParticles(px, py, '#ef4444', 15, 'sparkle'); // Golden Light
     } else if (powerup.type === 'chest') {
         // Treasure Chest Reward
         currentState.score += 50;
         scoreEl.textContent = currentState.score;
         // Visual effect needed? Floating text "+50"
+        spawnParticles(px, py, '#fcd34d', 30, 'burst'); // Gold shower
+        triggerShake(5);
     }
 
     currentState.powerups.splice(index, 1);
@@ -277,6 +341,12 @@ function handleEating(index) {
         // Correct Answer
         currentState.score += 5;
         scoreEl.textContent = currentState.score;
+
+        // FX: Small Burst + Tiny Shake
+        const fx = eatenFood.x * GRID_SIZE + GRID_SIZE / 2;
+        const fy = eatenFood.y * GRID_SIZE + GRID_SIZE / 2;
+        spawnParticles(fx, fy, '#86EFAC', 8); // Green burst
+        triggerShake(3);
 
         // Update Loot
         if (currentState.tier < 2) {
@@ -308,6 +378,12 @@ function handleEating(index) {
     } else {
         // Wrong Answer
         currentState.loot.combo = 0; // Reset Combo
+
+        // FX: Penalty Shake + Grey Burst
+        const fx = eatenFood.x * GRID_SIZE + GRID_SIZE / 2;
+        const fy = eatenFood.y * GRID_SIZE + GRID_SIZE / 2;
+        spawnParticles(fx, fy, '#94a3b8', 10);
+        triggerShake(10);
 
         // Shrink Snake: remove the tail that was just added (so effectively no growth) + remove another segment
         currentState.snake.pop();
@@ -376,6 +452,10 @@ function draw() {
     // Clear canvas
     ctx.fillStyle = canvasBg;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    ctx.save();
+    // Apply Screen Shake
+    ctx.translate(currentState.shake.x, currentState.shake.y);
 
     // Draw Current Question (Top Center)
     if (currentState.currentQuestion) {
@@ -468,14 +548,16 @@ function draw() {
 
         // Determine visual type based on Correctness
         if (food.isCorrect) {
-            // Draw Loot (Coin or Gem)
-            if (currentState.tier < 2) {
-                drawCoin(food.x, food.y, food.value);
-            } else {
-                drawGem(food.x, food.y, food.value);
+            // Draw Food based on Tier
+            switch (currentState.tier) {
+                case 0: drawApple(food.x, food.y, food.value); break; // Bronze
+                case 1: drawBurger(food.x, food.y, food.value); break; // Silver
+                case 2: drawPizza(food.x, food.y, food.value); break; // Gold
+                case 3: drawCake(food.x, food.y, food.value); break; // Diamond
+                default: drawApple(food.x, food.y, food.value);
             }
         } else {
-            // Draw Trap (Stone)
+            // Draw Trap (Rotten/Spike)
             drawTrap(food.x, food.y, food.value);
         }
     });
@@ -490,79 +572,140 @@ function draw() {
             drawChest(p.x, p.y);
         }
     });
+
+    // Draw Particles
+    currentState.particles.forEach(p => {
+        ctx.globalAlpha = p.alpha;
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 1.0;
+    });
+
+    ctx.restore(); // Restore context (remove shake)
 }
 
 // --- Helper Draw Functions ---
-function drawCoin(gx, gy, val) {
+// --- Helper Draw Functions ---
+function drawApple(gx, gy, val) {
     const x = gx * GRID_SIZE + GRID_SIZE / 2;
     const y = gy * GRID_SIZE + GRID_SIZE / 2;
-    // Gold Circle
-    ctx.shadowBlur = 10;
-    ctx.shadowColor = '#fbbf24';
+    // Red Body
+    ctx.shadowBlur = 5;
+    ctx.shadowColor = '#f87171';
+    ctx.fillStyle = '#ef4444';
+    ctx.beginPath();
+    ctx.arc(x, y + 2, GRID_SIZE / 2 - 2, 0, Math.PI * 2);
+    ctx.fill();
+    // Leaf
+    ctx.fillStyle = '#4ade80';
+    ctx.beginPath();
+    ctx.ellipse(x, y - 8, 3, 6, Math.PI / 4, 0, Math.PI * 2);
+    ctx.fill();
+    // Shine
+    ctx.fillStyle = 'rgba(255,255,255,0.4)';
+    ctx.beginPath();
+    ctx.arc(x - 4, y - 2, 2, 0, Math.PI * 2);
+    ctx.fill();
+    drawValueText(x, y + 2, val);
+}
+
+function drawBurger(gx, gy, val) {
+    const x = gx * GRID_SIZE + GRID_SIZE / 2;
+    const y = gy * GRID_SIZE + GRID_SIZE / 2;
+    ctx.shadowBlur = 5;
+    ctx.shadowColor = '#eaa221'; // Bun glow
+
+    // Bottom Bun
     ctx.fillStyle = '#f59e0b';
     ctx.beginPath();
-    ctx.arc(x, y, GRID_SIZE / 2 - 2, 0, Math.PI * 2);
+    ctx.moveTo(x - 8, y + 2);
+    ctx.quadraticCurveTo(x, y + 8, x + 8, y + 2);
     ctx.fill();
-    // Inner Ring
-    ctx.strokeStyle = '#fcd34d';
+
+    // Meat
+    ctx.fillStyle = '#78350f';
+    ctx.fillRect(x - 9, y, 18, 3);
+
+    // Lettuce
+    ctx.fillStyle = '#4ade80';
+    ctx.fillRect(x - 9, y - 2, 18, 2);
+
+    // Top Bun
+    ctx.fillStyle = '#f59e0b';
+    ctx.beginPath();
+    ctx.arc(x, y - 2, 8, Math.PI, 0);
+    ctx.fill();
+
+    drawValueText(x, y + 2, val);
+}
+
+function drawPizza(gx, gy, val) {
+    const x = gx * GRID_SIZE + GRID_SIZE / 2;
+    const y = gy * GRID_SIZE + GRID_SIZE / 2;
+    ctx.shadowBlur = 5;
+    ctx.shadowColor = '#facc15';
+
+    // Triangle Slice
+    ctx.fillStyle = '#facc15'; // Cheese
+    ctx.beginPath();
+    ctx.moveTo(x, y - 8);
+    ctx.lineTo(x - 8, y + 8);
+    ctx.quadraticCurveTo(x, y + 6, x + 8, y + 8);
+    ctx.fill();
+
+    // Crust
+    ctx.strokeStyle = '#d97706';
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.arc(x, y, GRID_SIZE / 2 - 5, 0, Math.PI * 2);
+    ctx.moveTo(x - 8, y + 8);
+    ctx.quadraticCurveTo(x, y + 6, x + 8, y + 8);
     ctx.stroke();
-    // Value
-    drawValueText(x, y, val);
-}
 
-function drawGem(gx, gy, val) {
-    const x = gx * GRID_SIZE + GRID_SIZE / 2;
-    const y = gy * GRID_SIZE + GRID_SIZE / 2;
-    // Diamond Shape
-    ctx.shadowBlur = 10;
-    ctx.shadowColor = '#22d3ee';
-    ctx.fillStyle = '#06b6d4';
-    ctx.beginPath();
-    ctx.moveTo(x, y - (GRID_SIZE / 2 - 2));
-    ctx.lineTo(x + (GRID_SIZE / 2 - 2), y);
-    ctx.lineTo(x, y + (GRID_SIZE / 2 - 2));
-    ctx.lineTo(x - (GRID_SIZE / 2 - 2), y);
-    ctx.fill();
-    // Value
-    drawValueText(x, y, val);
-}
-
-function drawTrap(gx, gy, val) {
-    const x = gx * GRID_SIZE + GRID_SIZE / 2;
-    const y = gy * GRID_SIZE + GRID_SIZE / 2;
-    // Grey Stone / Spike Mine
-    ctx.shadowBlur = 0;
-    ctx.fillStyle = '#475569';
-    ctx.beginPath();
-    // Rough shape
-    ctx.arc(x, y, GRID_SIZE / 2 - 2, 0, Math.PI * 2);
-    ctx.fill();
-    // Spikes hints (small circles around?)
-    ctx.fillStyle = '#1e293b';
-    ctx.beginPath();
-    ctx.arc(x - 5, y - 5, 2, 0, Math.PI * 2);
-    ctx.arc(x + 5, y + 5, 2, 0, Math.PI * 2);
-    ctx.arc(x + 5, y - 5, 2, 0, Math.PI * 2);
-    ctx.arc(x - 5, y + 5, 2, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Value (Red text to warn)
+    // Pepperoni
     ctx.fillStyle = '#ef4444';
-    ctx.font = 'bold 12px Roboto';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(val, x, y);
+    ctx.beginPath(); ctx.arc(x, y + 2, 2, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(x - 3, y - 2, 1.5, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(x + 3, y - 2, 1.5, 0, Math.PI * 2); ctx.fill();
+
+    drawValueText(x, y + 2, val);
+}
+
+function drawCake(gx, gy, val) {
+    const x = gx * GRID_SIZE + GRID_SIZE / 2;
+    const y = gy * GRID_SIZE + GRID_SIZE / 2;
+    ctx.shadowBlur = 5;
+    ctx.shadowColor = '#f472b6';
+
+    // Layers (White / Pink)
+    ctx.fillStyle = '#fce7f3'; // Sponge
+    ctx.fillRect(x - 6, y, 12, 8);
+    ctx.fillStyle = '#f472b6'; // Icing
+    ctx.fillRect(x - 6, y - 4, 12, 4);
+
+    // Cherry
+    ctx.fillStyle = '#ef4444';
+    ctx.beginPath();
+    ctx.arc(x, y - 6, 2.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Candle
+    ctx.fillStyle = '#60a5fa';
+    ctx.fillRect(x - 1, y - 9, 2, 3);
+
+    drawValueText(x, y + 4, val);
 }
 
 function drawValueText(x, y, val) {
     ctx.shadowBlur = 0;
-    ctx.fillStyle = '#0f172a'; // Dark Slate (almost black) for contrast on Gold/Cyan
-    ctx.font = 'bold 12px Roboto';
+    ctx.fillStyle = '#ffffff'; // White text (Stroke back for contrast?)
+    ctx.stokeStyle = '#000000';
+    ctx.lineWidth = 3;
+    ctx.font = 'bold 14px Roboto'; // Bigger font
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
+    ctx.strokeText(val, x, y);
     ctx.fillText(val, x, y);
 }
 
