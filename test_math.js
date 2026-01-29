@@ -12,6 +12,9 @@ console.log("=== Testing Math Engine ===");
         // Basic Validation
         if (!q.text || q.answer === undefined || !q.distractors || q.distractors.length !== 2) {
             console.error("❌ Invalid Structure");
+            process.exit(1); // Fail CI
         }
     }
 });
+console.log("✅ All tests passed!");
+
