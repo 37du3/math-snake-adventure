@@ -504,8 +504,8 @@ function drawTrap(gx, gy, val) {
 
 function drawValueText(x, y, val) {
     ctx.shadowBlur = 0;
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 11px Roboto'; // Slightly smaller to fit icon
+    ctx.fillStyle = '#0f172a'; // Dark Slate (almost black) for contrast on Gold/Cyan
+    ctx.font = 'bold 12px Roboto';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(val, x, y);
