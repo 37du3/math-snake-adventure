@@ -6,6 +6,8 @@ const startBtn = document.getElementById('start-btn');
 const uiLayer = document.getElementById('ui-layer');
 const gameStatus = document.getElementById('game-status');
 const speedSlider = document.getElementById('speed-slider');
+const goldEl = document.getElementById('gold-count');
+const gemEl = document.getElementById('gem-count');
 
 // Game Constants
 const GRID_SIZE = 20;
@@ -22,7 +24,8 @@ let currentState = {
     tier: 0, // 0: Bronze, 1: Silver, 2: Gold, 3: Diamond
     snake: [],
     foods: [], // Array of {x, y, value, isCorrect}
-    powerups: [], // Array of {x, y, type: 'bomb'|'potion'}
+    powerups: [],
+    loot: { gold: 0, gems: 0, combo: 0 },
     currentQuestion: null,
     dx: 0,
     dy: 0,
@@ -71,7 +74,10 @@ function initGame() {
     ];
     currentState.score = 0;
     currentState.tier = 0;
+    currentState.loot = { gold: 0, gems: 0, combo: 0 };
     scoreEl.textContent = 0;
+    goldEl.textContent = 0;
+    gemEl.textContent = 0;
 
     currentState.dx = 1;
     currentState.dy = 0;
@@ -105,11 +111,22 @@ function generateNewRound() {
     if (Math.random() < 0.1 && currentState.powerups.length === 0) {
         spawnPowerup();
     }
+
+    // 4. Combo Chest Check
+    if (currentState.loot.combo >= 3) {
+        // Spawn Chest!
+        spawnPowerup('chest'); // Overload spawnPowerup? Or separate? 
+        // Let's modify spawnPowerup to accept type or random.
+        currentState.loot.combo = 0; // Reset combo after spawn? Or after eat? Plan says "next spawn includes Chest".
+        // Let's reset combo logic in handleEating -> if combo reaches 3, set flag "spawnChestNext". 
+        // Actually, simplest is: if combo >= 3 passed into this round, we force spawn a Chest. 
+        // But we need to distinguish Chest from Bomb/Potion.
+    }
 }
 
-function spawnPowerup() {
+function spawnPowerup(forceType = null) {
     const types = ['bomb', 'potion'];
-    const type = types[Math.floor(Math.random() * types.length)];
+    const type = forceType || types[Math.floor(Math.random() * types.length)];
 
     let valid = false;
     let p = { x: 0, y: 0, type };
@@ -240,10 +257,14 @@ function handlePowerup(index) {
         currentState.foods = currentState.foods.filter(f => f.isCorrect);
         // Visual flash (simple console for now)
     } else if (powerup.type === 'potion') {
-        // Grow snake by 2 (push tail copies)
         const tail = currentState.snake[currentState.snake.length - 1];
         currentState.snake.push({ ...tail });
         currentState.snake.push({ ...tail });
+    } else if (powerup.type === 'chest') {
+        // Treasure Chest Reward
+        currentState.score += 50;
+        scoreEl.textContent = currentState.score;
+        // Visual effect needed? Floating text "+50"
     }
 
     currentState.powerups.splice(index, 1);
@@ -257,10 +278,22 @@ function handleEating(index) {
         currentState.score += 5;
         scoreEl.textContent = currentState.score;
 
-        // Check Level Up (Every 5*5 = 25 points? No, user said every 5 answers -> 5 items)
-        // Let's stick to simple Score Thresholds for now implementation logic.
-        // Bronze < 25, Silver < 50, Gold < 75... 
-        // Or simply: increment tier every 5 correct answers.
+        // Update Loot
+        if (currentState.tier < 2) {
+            currentState.loot.gold++;
+            goldEl.textContent = currentState.loot.gold;
+            // Check Pirate Skin Unlock
+            if (currentState.loot.gold === 100) {
+                // Unlock logic (visual notification?)
+                console.log("Pirate Skin Unlocked!");
+            }
+        } else {
+            currentState.loot.gems++;
+            gemEl.textContent = currentState.loot.gems;
+        }
+
+        // Combo Logic
+        currentState.loot.combo++;
 
         // Check Tier Update
         const nextTier = Math.floor(currentState.score / 25);
@@ -270,17 +303,14 @@ function handleEating(index) {
         }
 
         // Generate New Round (Question + Foods)
-        // Snake grows (we don't pop tail in gameLoop)
         generateNewRound();
 
     } else {
         // Wrong Answer
-        // Shrink Snake: remove the tail that was just added (so effectively no growth) + remove another segment
-        currentState.snake.pop(); // Revert the growth that happens by default (since we didn't pop in gameLoop yet? Wait logic in gameLoop says "else pop". So if we hit food, we DON'T pop. So snake grows +1.)
-        // If we want to shrink, we need to pop TWICE? 
-        // 1. We hit food -> loop doesn't pop. Length +1.
-        // 2. We want net -1. So we pop 2 items.
+        currentState.loot.combo = 0; // Reset Combo
 
+        // Shrink Snake: remove the tail that was just added (so effectively no growth) + remove another segment
+        currentState.snake.pop();
         currentState.snake.pop();
         currentState.snake.pop();
 
@@ -379,33 +409,125 @@ function draw() {
         // We shouldn't color code them as "correct/wrong" visually, or it's too easy.
         // They should look similar or random colors.
 
-        ctx.fillStyle = '#3b82f6';
-        ctx.shadowBlur = 10;
-        ctx.shadowColor = '#3b82f6';
-
-        // Circle background
-        ctx.beginPath();
-        const cx = food.x * GRID_SIZE + GRID_SIZE / 2;
-        const cy = food.y * GRID_SIZE + GRID_SIZE / 2;
-        ctx.arc(cx, cy, GRID_SIZE / 2 + 2, 0, Math.PI * 2);
-        ctx.fill();
         ctx.shadowBlur = 0;
 
-        ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 12px Roboto';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(food.value, cx, cy);
+        // Determine visual type based on Correctness
+        if (food.isCorrect) {
+            // Draw Loot (Coin or Gem)
+            if (currentState.tier < 2) {
+                drawCoin(food.x, food.y, food.value);
+            } else {
+                drawGem(food.x, food.y, food.value);
+            }
+        } else {
+            // Draw Trap (Stone)
+            drawTrap(food.x, food.y, food.value);
+        }
     });
 
     // Draw Powerups
     currentState.powerups.forEach(p => {
         if (p.type === 'bomb') {
             drawBomb(p.x, p.y);
-        } else {
+        } else if (p.type === 'potion') {
             drawPotion(p.x, p.y);
+        } else if (p.type === 'chest') {
+            drawChest(p.x, p.y);
         }
     });
+}
+
+// --- Helper Draw Functions ---
+function drawCoin(gx, gy, val) {
+    const x = gx * GRID_SIZE + GRID_SIZE / 2;
+    const y = gy * GRID_SIZE + GRID_SIZE / 2;
+    // Gold Circle
+    ctx.shadowBlur = 10;
+    ctx.shadowColor = '#fbbf24';
+    ctx.fillStyle = '#f59e0b';
+    ctx.beginPath();
+    ctx.arc(x, y, GRID_SIZE / 2 - 2, 0, Math.PI * 2);
+    ctx.fill();
+    // Inner Ring
+    ctx.strokeStyle = '#fcd34d';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(x, y, GRID_SIZE / 2 - 5, 0, Math.PI * 2);
+    ctx.stroke();
+    // Value
+    drawValueText(x, y, val);
+}
+
+function drawGem(gx, gy, val) {
+    const x = gx * GRID_SIZE + GRID_SIZE / 2;
+    const y = gy * GRID_SIZE + GRID_SIZE / 2;
+    // Diamond Shape
+    ctx.shadowBlur = 10;
+    ctx.shadowColor = '#22d3ee';
+    ctx.fillStyle = '#06b6d4';
+    ctx.beginPath();
+    ctx.moveTo(x, y - (GRID_SIZE / 2 - 2));
+    ctx.lineTo(x + (GRID_SIZE / 2 - 2), y);
+    ctx.lineTo(x, y + (GRID_SIZE / 2 - 2));
+    ctx.lineTo(x - (GRID_SIZE / 2 - 2), y);
+    ctx.fill();
+    // Value
+    drawValueText(x, y, val);
+}
+
+function drawTrap(gx, gy, val) {
+    const x = gx * GRID_SIZE + GRID_SIZE / 2;
+    const y = gy * GRID_SIZE + GRID_SIZE / 2;
+    // Grey Stone / Spike Mine
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = '#475569';
+    ctx.beginPath();
+    // Rough shape
+    ctx.arc(x, y, GRID_SIZE / 2 - 2, 0, Math.PI * 2);
+    ctx.fill();
+    // Spikes hints (small circles around?)
+    ctx.fillStyle = '#1e293b';
+    ctx.beginPath();
+    ctx.arc(x - 5, y - 5, 2, 0, Math.PI * 2);
+    ctx.arc(x + 5, y + 5, 2, 0, Math.PI * 2);
+    ctx.arc(x + 5, y - 5, 2, 0, Math.PI * 2);
+    ctx.arc(x - 5, y + 5, 2, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Value (Red text to warn)
+    ctx.fillStyle = '#ef4444';
+    ctx.font = 'bold 12px Roboto';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(val, x, y);
+}
+
+function drawValueText(x, y, val) {
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 11px Roboto'; // Slightly smaller to fit icon
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(val, x, y);
+}
+
+function drawChest(gx, gy) {
+    const x = gx * GRID_SIZE + GRID_SIZE / 2;
+    const y = gy * GRID_SIZE + GRID_SIZE / 2;
+    ctx.shadowBlur = 15;
+    ctx.shadowColor = '#fcd34d';
+    // Box
+    ctx.fillStyle = '#b45309';
+    ctx.fillRect(x - 8, y - 6, 16, 12);
+    // Lid line
+    ctx.fillStyle = '#fbbf24';
+    ctx.fillRect(x - 9, y - 2, 18, 2);
+    // Lock
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(x, y, 2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
 }
 
 function drawBomb(gridX, gridY) {
