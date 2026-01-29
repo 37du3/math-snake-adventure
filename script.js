@@ -29,9 +29,11 @@ let currentState = {
     currentQuestion: null,
     dx: 0,
     dy: 0,
+    dy: 0,
     nextDx: 0,
     nextDy: 0,
     isRunning: false,
+    isPaused: false,
     interval: null,
     // FX State
     particles: [],
@@ -43,9 +45,45 @@ highScoreEl.textContent = currentState.highScore;
 
 // Event Listeners
 // Event Listeners
-document.addEventListener('keydown', handleInput);
+// Event Listeners
+document.addEventListener('keydown', (e) => {
+    if (e.code === 'Space') {
+        togglePause();
+    } else {
+        handleInput(e);
+    }
+});
 startBtn.addEventListener('click', startGame);
 speedSlider.addEventListener('input', handleSpeedChange);
+const pauseBtn = document.getElementById('pause-btn');
+if (pauseBtn) pauseBtn.addEventListener('click', togglePause);
+
+function togglePause() {
+    if (!currentState.isRunning && !currentState.isPaused) return;
+
+    currentState.isPaused = !currentState.isPaused;
+
+    if (currentState.isPaused) {
+        clearInterval(currentState.interval);
+        if (pauseBtn) pauseBtn.textContent = '▶';
+
+        // Draw Overlay immediately
+        ctx.save();
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 40px Roboto';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.shadowColor = '#000000';
+        ctx.shadowBlur = 10;
+        ctx.fillText("PAUSED", canvas.width / 2, canvas.height / 2);
+        ctx.restore();
+    } else {
+        currentState.interval = setInterval(gameLoop, gameSpeed);
+        if (pauseBtn) pauseBtn.textContent = '⏸';
+    }
+}
 
 function handleSpeedChange(e) {
     gameSpeed = parseInt(e.target.value);
@@ -135,8 +173,9 @@ function spawnPowerup(forceType = null) {
     let p = { x: 0, y: 0, type };
 
     while (!valid) {
-        p.x = Math.floor(Math.random() * TILE_COUNT);
-        p.y = Math.floor(Math.random() * TILE_COUNT);
+        // Fix: Add Margin
+        p.x = Math.floor(Math.random() * (TILE_COUNT - 2)) + 1;
+        p.y = Math.floor(Math.random() * (TILE_COUNT - 2)) + 1;
         valid = true;
 
         // Check snake
@@ -152,8 +191,9 @@ function spawnSingleFood(value, isCorrect) {
     let newFood = { x: 0, y: 0, value, isCorrect };
 
     while (!validPosition) {
-        newFood.x = Math.floor(Math.random() * TILE_COUNT);
-        newFood.y = Math.floor(Math.random() * TILE_COUNT);
+        // Fix: Add Margin (1 to TILE_COUNT - 2)
+        newFood.x = Math.floor(Math.random() * (TILE_COUNT - 2)) + 1;
+        newFood.y = Math.floor(Math.random() * (TILE_COUNT - 2)) + 1;
 
         validPosition = true;
 
