@@ -1,0 +1,17 @@
+
+# System Files
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Agent Configuration
+.agent/
+**/.agent/
+
+# Documentation (Private)
+docs/
+
+# IDE
+.vscode/
+.idea/
