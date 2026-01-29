@@ -1,11 +1,43 @@
 :root {
-    --bg-color: #0f172a;
-    --canvas-bg: #1e293b;
-    --primary-color: #10b981; /* Neon Green */
-    --accent-color: #3b82f6; /* Blue for food/UI */
-    --text-color: #e2e8f0;
-    --grid-line: rgba(255, 255, 255, 0.05);
-    --shadow-color: rgba(16, 185, 129, 0.4);
+    /* Default / Bronze (Forest) */
+    --bg-color: #064E3B;
+    --canvas-bg: #022c22;
+    --primary-color: #22C55E;
+    --accent-color: #86EFAC;
+    --text-color: #F0FDF4;
+    --shadow-color: rgba(34, 197, 94, 0.4);
+}
+
+/* Silver (Ocean) */
+body.theme-silver {
+    --bg-color: #0C4A6E;
+    --canvas-bg: #082f49;
+    --primary-color: #0EA5E9;
+    --accent-color: #7DD3FC;
+    --text-color: #F0F9FF;
+    --shadow-color: rgba(14, 165, 233, 0.4);
+}
+
+/* Gold (Desert) */
+body.theme-gold {
+    --bg-color: #451A03;
+    --canvas-bg: #451a03;
+    /* Slightly lighter for canvas maybe? Let's use darker amber */
+    --canvas-bg: #291001;
+    --primary-color: #EAB308;
+    --accent-color: #FDE047;
+    --text-color: #FEFCE8;
+    --shadow-color: rgba(234, 179, 8, 0.4);
+}
+
+/* Diamond (Space) */
+body.theme-diamond {
+    --bg-color: #2E1065;
+    --canvas-bg: #1e1b4b;
+    --primary-color: #D946EF;
+    --accent-color: #F0ABFC;
+    --text-color: #FDF4FF;
+    --shadow-color: rgba(217, 70, 239, 0.4);
 }
 
 * {
@@ -71,7 +103,8 @@ h1 {
     letter-spacing: 1px;
 }
 
-#score, #high-score {
+#score,
+#high-score {
     font-family: 'Orbitron', sans-serif;
     font-size: 1.5rem;
     color: var(--primary-color);
@@ -80,16 +113,16 @@ h1 {
 .game-container {
     position: relative;
     padding: 4px;
-    background: linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0.0));
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.0));
     border-radius: 16px;
-    box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
 }
 
 canvas {
     background-color: var(--canvas-bg);
     border-radius: 12px;
     display: block;
-    box-shadow: inset 0 0 30px rgba(0,0,0,0.3);
+    box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.3);
     /* Optional grid pattern via CSS background if desired, but we'll keep it clean */
 }
 
@@ -114,6 +147,23 @@ canvas {
     pointer-events: none;
 }
 
+.badge {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(5px);
+    padding: 8px 16px;
+    border-radius: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    font-family: 'Orbitron', sans-serif;
+    color: var(--primary-color);
+    font-size: 0.9rem;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+    text-transform: uppercase;
+    transition: all 0.3s ease;
+}
+
 .menu-content {
     text-align: center;
     animation: fadeIn 0.5s ease;
@@ -124,7 +174,7 @@ canvas {
     font-size: 3rem;
     margin-bottom: 10px;
     color: var(--text-color);
-    text-shadow: 0 0 15px rgba(255,255,255,0.3);
+    text-shadow: 0 0 15px rgba(255, 255, 255, 0.3);
 }
 
 .menu-content p {
@@ -183,6 +233,13 @@ canvas {
 }
 
 @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }

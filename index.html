@@ -1,16 +1,20 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Neon Snake</title>
     <link rel="stylesheet" href="style.css">
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Roboto:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Roboto:wght@400;500&display=swap"
+        rel="stylesheet">
 </head>
+
 <body>
     <div class="app">
         <header>
-            <h1>NEON SNAKE</h1>
+            <div id="tier-badge" class="badge">BRONZE</div>
+            <h1>MATH SNAKE</h1>
             <div class="score-board">
                 <div class="score-item">
                     <span class="label">SCORE</span>
@@ -25,7 +29,7 @@
 
         <div class="game-container">
             <canvas id="game-canvas" width="400" height="400"></canvas>
-            
+
             <div id="ui-layer" class="ui-overlay">
                 <div class="menu-content">
                     <h2 id="game-status">READY?</h2>
@@ -34,7 +38,7 @@
                 </div>
             </div>
         </div>
-        
+
         <div class="controls-hint">
             <div class="key-hint">↑</div>
             <div class="key-row">
@@ -44,6 +48,8 @@
             </div>
         </div>
     </div>
+    <script src="math_engine.js"></script>
     <script src="script.js"></script>
 </body>
+
 </html>
